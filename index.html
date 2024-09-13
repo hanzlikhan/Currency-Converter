@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Currency Rates Converter</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f0f4f7;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            height: 100vh;
+        }
+        .container {
+            display: flex;
+            width: 90%;
+            max-width: 1200px;
+            margin-top: 20px;
+        }
+        .table-container {
+            width: 60%;
+            background: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            margin-right: 20px;
+        }
+        .converter-container {
+            width: 35%;
+            background: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            text-align: center;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 2em;
+            font-weight: 600;
+            border-bottom: 2px solid #007bff;
+            padding-bottom: 10px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            background-color: #fff;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border: 1px solid #ddd;
+        }
+        th {
+            background-color: #007bff;
+            color: #ffffff;
+            font-weight: bold;
+        }
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        tr:nth-child(odd) {
+            background-color: #ffffff;
+        }
+        td {
+            color: #333;
+        }
+        button {
+            padding: 6px 12px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .converter-container input, .converter-container button {
+            display: block;
+            width: 100%;
+            margin-bottom: 15px;
+            padding: 10px;
+            font-size: 1em;
+        }
+        .converter-container input {
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .loader {
+            margin: 30px auto;
+            font-size: 1.2em;
+            color: #007bff;
+        }
+        .error {
+            color: #d9534f;
+            font-size: 1.2em;
+            margin: 20px auto;
+        }
+    </style>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <!-- Table container on the left side -->
+        <div class="table-container">
+            <h1>Currency Exchange Rates</h1>
+            <div class="loader">Loading data...</div>
+            <table id="currencyTable">
+                <thead>
+                    <tr>
+                        <th>Currency Code</th>
+                        <th>Buy Rate</th>
+                        <th>Sell Rate</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Data will be inserted here -->
+                </tbody>
+            </table>
+            <div class="error" style="display: none;">Failed to load data. Please try again later.</div>
+        </div>
+
+        <!-- Converter container on the right side -->
+        <div class="converter-container">
+            <h1>Currency Converter</h1>
+            <input type="number" id="usdValue" placeholder="Enter USD amount" />
+            <input type="text" id="buyRate" placeholder="Buy Rate" readonly />
+            <input type="text" id="convertedValue" placeholder="Converted Value" readonly />
+            <button id="convertBtn">Convert</button>
+        </div>
+    </div>
+
+    <script>
+        $(document).ready(function() {
+            const apiKey = '90520bb4eb937adf4d8803f9';  // Replace with your actual API key
+            const apiUrl = `https://v6.exchangerate-api.com/v6/${apiKey}/latest/USD`;
+
+            $('.loader').show();
+            $('.error').hide();
+
+            $.getJSON(apiUrl, function(data) {
+                if (data.result === 'success') {
+                    const rates = data.conversion_rates;
+                    let tableRows = '';
+
+                    $('#currencyTable tbody').empty();
+
+                    // Loop through all rates and generate table rows
+                    $.each(rates, function(code, rate) {
+                        const buyRate = rate;
+                        const sellRate = buyRate * 1.02; // Example calculation for sell rate
+                        tableRows += `
+                            <tr>
+                                <td>${code}</td>
+                                <td>${buyRate.toFixed(2)}</td>
+                                <td>${sellRate.toFixed(2)}</td>
+                                <td><button class="convert-btn" data-buyrate="${buyRate.toFixed(2)}" data-code="${code}">Convert</button></td>
+                            </tr>
+                        `;
+                    });
+
+                    $('#currencyTable tbody').append(tableRows);
+                    $('.loader').hide();
+
+                    // Set up event listener for all "Convert" buttons
+                    $('.convert-btn').on('click', function() {
+                        const buyRate = $(this).data('buyrate');
+                        $('#buyRate').val(buyRate);  // Fill the buy rate input with the clicked value
+                    });
+
+                } else {
+                    $('.error').text("Failed to fetch the data.").show();
+                    $('.loader').hide();
+                }
+            }).fail(function() {
+                $('#currencyTable tbody').html('<tr><td colspan="4" style="text-align: center;">No data available</td></tr>');
+                $('.loader').hide();
+                $('.error').show();
+            });
+
+            // Conversion logic with dual functionality
+            let isConverted = false;
+            $('#convertBtn').on('click', function() {
+                const amount = parseFloat($('#usdValue').val());
+                const buyRate = parseFloat($('#buyRate').val());
+
+                if (isConverted) {
+                    // Reset fields if the button is clicked again
+                    $('#usdValue').val('');
+                    $('#buyRate').val('');
+                    $('#convertedValue').val('');
+                    $(this).text('Convert');  // Change button text back to "Convert"
+                    isConverted = false;
+                } else {
+                    // Perform conversion if the fields are valid
+                    if (!isNaN(amount) && !isNaN(buyRate)) {
+                        const convertedValue = amount * buyRate;
+                        $('#convertedValue').val(convertedValue.toFixed(2));
+                        $(this).text('Reset');  // Change button text to "Reset"
+                        isConverted = true;
+                    } else {
+                        alert("Please enter a valid USD amount and select a currency.");
+                    }
+                }
+            });
+        });
+    </script>
+</body>
+</html>
